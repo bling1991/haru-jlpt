@@ -46,7 +46,7 @@ export function HeroSection({
               </h1>
 
               <p className="mt-4 text-base sm:text-lg text-slate-600 leading-relaxed max-w-xl">
-                N1(170분·71문항)부터 N5(90분·73문항)까지 실제 교시별 제한시간과 문항 구성을 완벽히 구현했습니다. 일본어 음성 청해와 180점 만점 합격·과락 판정, 한국어 상세 해설을 바로 경험하세요.
+                N1(170분·98문항)부터 N5(105분·89문항)까지 실제 시험과 동일한 영역별 문항 수와 교시 제한시간을 완벽히 구현했습니다. 일본어 음성 청해와 180점 만점 합격·과락 판정, 한국어 상세 해설을 바로 경험하세요.
               </p>
 
               {/* Quick Level Selector Bar (N1 ~ N5) */}
@@ -88,8 +88,8 @@ export function HeroSection({
                         JLPT {selectedLevel}
                       </strong>{' '}
                       · 총 {activeLevelInfo.totalMinutes}분 · 총{' '}
-                      {activeQuestionCount}문항 · 합격 기준{' '}
-                      {activeLevelInfo.passingScore}/180점
+                      {activeQuestionCount}문항 · 합격{' '}
+                      {activeLevelInfo.passingScore}/180점 · 과락({activeLevelInfo.minScoreRuleKo})
                     </span>
                   </p>
                   <p className="text-xs text-slate-500 tabular-nums">
@@ -165,7 +165,7 @@ export function HeroSection({
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">
-              90~170분
+              105~170분
             </p>
             <p className="mt-1 text-xs sm:text-sm text-slate-600">
               1~3교시 공식 시험시간 타이머 적용

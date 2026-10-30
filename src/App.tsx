@@ -8,7 +8,6 @@ import { LevelCardsSection } from './components/LevelCardsSection';
 import { MockTestCatalogSection } from './components/MockTestCatalogSection';
 import { QuizResults } from './components/QuizResults';
 import { QuizWorkspace } from './components/QuizWorkspace';
-import { getLevelInfo } from './data/levels';
 import {
   buildExamConfig,
   getQuestionsByScope,
@@ -19,10 +18,10 @@ import {
   ExamSectionScope,
   JlptLevel,
   MockTestProgressEntry,
-  QuizCategory,
   QuizQuestion,
   UserAnswerState,
 } from './types/quiz';
+import { evaluateExamAttempt } from './utils/grading';
 import {
   getMockProgress,
   loadAllMockProgress,
@@ -32,82 +31,6 @@ import {
 import { stopJapaneseSpeech } from './utils/speech';
 
 type AppViewMode = 'home' | 'quiz' | 'results';
-
-function computeAttemptSummary(
-  config: ActiveExamConfig,
-  questions: QuizQuestion[],
-  finalAnswers: Record<string, UserAnswerState>
-): { scaledScore: number; maxScaledScore: number; passed: boolean | null } {
-  const levelInfo = getLevelInfo(config.level);
-  const totalCount = questions.length;
-  const correctCount = questions.filter(
-    (q) => finalAnswers[q.id]?.selectedOption === q.correctIndex
-  ).length;
-
-  const countForCats = (cats: QuizCategory[]) => {
-    const sub = questions.filter((q) => cats.includes(q.category));
-    const right = sub.filter(
-      (q) => finalAnswers[q.id]?.selectedOption === q.correctIndex
-    ).length;
-    return { right, total: sub.length };
-  };
-
-  if (config.scope === 'full') {
-    if (levelInfo.isCombinedLangReadingScore) {
-      const written = countForCats([
-        QuizCategory.Vocabulary,
-        QuizCategory.Grammar,
-        QuizCategory.Reading,
-      ]);
-      const listening = countForCats([QuizCategory.Listening]);
-      const writtenScore =
-        written.total > 0
-          ? Math.round((written.right / written.total) * 120)
-          : 0;
-      const listeningScore =
-        listening.total > 0
-          ? Math.round((listening.right / listening.total) * 60)
-          : 0;
-      const totalScore = writtenScore + listeningScore;
-      const passed =
-        totalScore >= levelInfo.passingScore &&
-        writtenScore >= 38 &&
-        listeningScore >= 19;
-      return { scaledScore: totalScore, maxScaledScore: 180, passed };
-    }
-
-    const lang = countForCats([QuizCategory.Vocabulary, QuizCategory.Grammar]);
-    const reading = countForCats([QuizCategory.Reading]);
-    const listening = countForCats([QuizCategory.Listening]);
-    const langScore =
-      lang.total > 0 ? Math.round((lang.right / lang.total) * 60) : 0;
-    const readingScore =
-      reading.total > 0 ? Math.round((reading.right / reading.total) * 60) : 0;
-    const listeningScore =
-      listening.total > 0
-        ? Math.round((listening.right / listening.total) * 60)
-        : 0;
-    const totalScore = langScore + readingScore + listeningScore;
-    const passed =
-      totalScore >= levelInfo.passingScore &&
-      langScore >= 19 &&
-      readingScore >= 19 &&
-      listeningScore >= 19;
-    return { scaledScore: totalScore, maxScaledScore: 180, passed };
-  }
-
-  const distinctCategories = new Set(questions.map((q) => q.category)).size;
-  const maxScaled =
-    config.scope === 'mini' ? 60 : distinctCategories >= 2 ? 120 : 60;
-  const scaled =
-    totalCount > 0 ? Math.round((correctCount / totalCount) * maxScaled) : 0;
-  const threshold = Math.round((levelInfo.passingScore / 180) * maxScaled);
-  return {
-    scaledScore: scaled,
-    maxScaledScore: maxScaled,
-    passed: scaled >= threshold,
-  };
-}
 
 export default function App() {
   const [viewMode, setViewMode] = useState<AppViewMode>('home');
@@ -128,7 +51,7 @@ export default function App() {
   const [answers, setAnswers] = useState<Record<string, UserAnswerState>>({});
 
   // Countdown timer state
-  const [remainingSeconds, setRemainingSeconds] = useState<number>(145 * 60);
+  const [remainingSeconds, setRemainingSeconds] = useState<number>(140 * 60);
   const [isTimerPaused, setIsTimerPaused] = useState<boolean>(false);
   const [timedOut, setTimedOut] = useState<boolean>(false);
 
@@ -150,7 +73,7 @@ export default function App() {
         });
 
         if (!isRetrySubset && activeQuestions.length > 0) {
-          const summary = computeAttemptSummary(
+          const report = evaluateExamAttempt(
             examConfig,
             activeQuestions,
             finalized
@@ -160,9 +83,10 @@ export default function App() {
             testNumber: examConfig.testNumber,
             scope: examConfig.scope,
             totalCount: activeQuestions.length,
-            scaledScore: summary.scaledScore,
-            maxScaledScore: summary.maxScaledScore,
-            passed: summary.passed,
+            scaledScore: report.scaledScore,
+            maxScaledScore: report.maxScaledScore,
+            passed: report.isPassed,
+            failedByCutoff: report.failedByCutoff,
           });
           setProgressMap(loadAllMockProgress());
         }

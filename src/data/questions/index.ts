@@ -16,17 +16,34 @@ import { n2Questions } from './n2';
 import { n3Questions } from './n3';
 import { n4Questions } from './n4';
 import { n5Questions } from './n5';
+import { rebalanceTestQuestions } from './rebalance';
+import { assembleOfficialTestQuestions } from '../supplements';
 
 export const TESTS_PER_LEVEL = 10;
 export const MOCK_TEST_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 export const TOTAL_MOCK_EXAM_SETS = 50;
 
 export const QUESTION_BANK: Record<JlptLevel, QuizQuestion[]> = {
-  [JlptLevel.N5]: n5Questions,
-  [JlptLevel.N4]: n4Questions,
-  [JlptLevel.N3]: n3Questions,
-  [JlptLevel.N2]: n2Questions,
-  [JlptLevel.N1]: n1Questions,
+  [JlptLevel.N5]: rebalanceTestQuestions(
+    assembleOfficialTestQuestions(JlptLevel.N5, 1, n5Questions),
+    'N5::test-1'
+  ),
+  [JlptLevel.N4]: rebalanceTestQuestions(
+    assembleOfficialTestQuestions(JlptLevel.N4, 1, n4Questions),
+    'N4::test-1'
+  ),
+  [JlptLevel.N3]: rebalanceTestQuestions(
+    assembleOfficialTestQuestions(JlptLevel.N3, 1, n3Questions),
+    'N3::test-1'
+  ),
+  [JlptLevel.N2]: rebalanceTestQuestions(
+    assembleOfficialTestQuestions(JlptLevel.N2, 1, n2Questions),
+    'N2::test-1'
+  ),
+  [JlptLevel.N1]: rebalanceTestQuestions(
+    assembleOfficialTestQuestions(JlptLevel.N1, 1, n1Questions),
+    'N1::test-1'
+  ),
 };
 
 export const TOTAL_QUESTION_BANK_COUNT: number = Object.values(
@@ -40,6 +57,9 @@ export const CATEGORY_LABELS_KO: Record<QuizCategory, string> = {
   [QuizCategory.Listening]: '청해',
 };
 
+const fullTestCache = new Map<string, QuizQuestion[]>();
+const miniTestCache = new Map<string, QuizQuestion[]>();
+
 export function getFullTestQuestions(
   level: JlptLevel,
   testNumber = 1
@@ -49,20 +69,36 @@ export function getFullTestQuestions(
     return QUESTION_BANK[level] ?? [];
   }
 
+  const cacheKey = `${level}::test-${normalized}`;
+  const cached = fullTestCache.get(cacheKey);
+  if (cached) return cached;
+
+  let raw: QuizQuestion[];
   switch (level) {
     case JlptLevel.N5:
-      return getN5MockTest(normalized);
+      raw = getN5MockTest(normalized);
+      break;
     case JlptLevel.N4:
-      return getN4MockTest(normalized);
+      raw = getN4MockTest(normalized);
+      break;
     case JlptLevel.N3:
-      return getN3MockTest(normalized);
+      raw = getN3MockTest(normalized);
+      break;
     case JlptLevel.N2:
-      return getN2MockTest(normalized);
+      raw = getN2MockTest(normalized);
+      break;
     case JlptLevel.N1:
-      return getN1MockTest(normalized);
+      raw = getN1MockTest(normalized);
+      break;
     default:
-      return QUESTION_BANK[level] ?? [];
+      raw = QUESTION_BANK[level] ?? [];
+      break;
   }
+
+  const assembled = assembleOfficialTestQuestions(level, normalized, raw);
+  const balanced = rebalanceTestQuestions(assembled, cacheKey);
+  fullTestCache.set(cacheKey, balanced);
+  return balanced;
 }
 
 export function getQuestionsByScope(
@@ -70,12 +106,17 @@ export function getQuestionsByScope(
   scope: ExamSectionScope,
   testNumber = 1
 ): QuizQuestion[] {
-  const all = getFullTestQuestions(level, testNumber);
+  const normalized = Math.max(1, Math.min(TESTS_PER_LEVEL, Math.floor(testNumber)));
+  const all = getFullTestQuestions(level, normalized);
   if (scope === 'full') {
     return all;
   }
 
   if (scope === 'mini') {
+    const miniKey = `${level}::mini-${normalized}`;
+    const cachedMini = miniTestCache.get(miniKey);
+    if (cachedMini) return cachedMini;
+
     const vocab = all
       .filter((q) => q.category === QuizCategory.Vocabulary)
       .slice(0, 6);
@@ -88,7 +129,12 @@ export function getQuestionsByScope(
     const listening = all
       .filter((q) => q.category === QuizCategory.Listening)
       .slice(0, 6);
-    return [...vocab, ...grammar, ...reading, ...listening];
+    const balancedMini = rebalanceTestQuestions(
+      [...vocab, ...grammar, ...reading, ...listening],
+      miniKey
+    );
+    miniTestCache.set(miniKey, balancedMini);
+    return balancedMini;
   }
 
   if (scope === 'period_1' || scope === 'period_2' || scope === 'period_3') {
@@ -131,6 +177,7 @@ export function getScopeMetaForCatalog(
   minutes: number;
   questionCount: number;
   modeLabelKo: string;
+  cutoffSummaryKo: string;
 } {
   const info = getLevelInfo(level);
   const questions = getQuestionsByScope(level, scope, 1);
@@ -142,6 +189,7 @@ export function getScopeMetaForCatalog(
       minutes: info.totalMinutes,
       questionCount: questions.length,
       modeLabelKo: '전체 테스트',
+      cutoffSummaryKo: info.minScoreRuleKo,
     };
   }
 
@@ -153,6 +201,7 @@ export function getScopeMetaForCatalog(
       minutes: 30,
       questionCount: questions.length,
       modeLabelKo: '미니 테스트',
+      cutoffSummaryKo: '최소 19점 이상 (60점 만점)',
     };
   }
 
@@ -161,12 +210,19 @@ export function getScopeMetaForCatalog(
       info.periods.find((p) => p.scope === scope) ?? info.periods[0];
     const maxPts = period.categories.length >= 2 ? 120 : 60;
     const passPts = Math.round((info.passingScore / 180) * maxPts);
+    const cutoffSummaryKo =
+      period.categories.length >= 2
+        ? info.isCombinedLangReadingScore
+          ? '통합 38점 이상 (120점 만점)'
+          : '언어지식 19점 / 독해 19점'
+        : '최소 19점 이상 (60점 만점)';
     return {
       passingPoints: passPts,
       maxPoints: maxPts,
       minutes: period.minutes,
       questionCount: questions.length,
       modeLabelKo: `${period.periodLabelKo} (${period.titleKo})`,
+      cutoffSummaryKo,
     };
   }
 
@@ -178,6 +234,7 @@ export function getScopeMetaForCatalog(
     minutes,
     questionCount: questions.length,
     modeLabelKo: `${CATEGORY_LABELS_KO[scope]} 실력 테스트`,
+    cutoffSummaryKo: '최소 19점 이상 (60점 만점)',
   };
 }
 

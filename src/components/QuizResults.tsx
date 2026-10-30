@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock,
@@ -17,6 +18,7 @@ import {
   QuizQuestion,
   UserAnswerState,
 } from '../types/quiz';
+import { evaluateExamAttempt } from '../utils/grading';
 import { speakJapanese } from '../utils/speech';
 import { formatTimerDisplay } from './QuizWorkspace';
 
@@ -30,16 +32,6 @@ interface QuizResultsProps {
   onRetryIncorrect: (incorrectQuestions: QuizQuestion[]) => void;
   onStartNextTest?: () => void;
   onGoHome: () => void;
-}
-
-interface OfficialScoreBucket {
-  titleKo: string;
-  score: number;
-  maxScore: number;
-  minRequired: number;
-  passedMin: boolean;
-  correct: number;
-  total: number;
 }
 
 export function QuizResults({
@@ -68,151 +60,7 @@ export function QuizResults({
   const scorePercent =
     totalCount > 0 ? Math.round((correctCount / totalCount) * 100) : 0;
 
-  const isFullExam = examConfig.scope === 'full';
-
-  // Helper to count correct/total for a subset of categories
-  const countForCategories = (cats: QuizCategory[]) => {
-    const sub = questions.filter((q) => cats.includes(q.category));
-    const right = sub.filter(
-      (q) => answers[q.id]?.selectedOption === q.correctIndex
-    ).length;
-    return { right, total: sub.length };
-  };
-
-  // Official 180-point scoring calculation for full mock exams
-  let officialBuckets: OfficialScoreBucket[] = [];
-  let scaledScore = 0;
-  let scaledMax = 60;
-  let isOfficialPass = false;
-  let failedBySectionMinimum = false;
-
-  if (isFullExam) {
-    scaledMax = 180;
-    if (levelInfo.isCombinedLangReadingScore) {
-      // N4 & N5: 언어지식(문자·어휘·문법)·독해 120점 (과락 38점) + 청해 60점 (과락 19점) = 180점
-      const written = countForCategories([
-        QuizCategory.Vocabulary,
-        QuizCategory.Grammar,
-        QuizCategory.Reading,
-      ]);
-      const listening = countForCategories([QuizCategory.Listening]);
-
-      const writtenScore =
-        written.total > 0 ? Math.round((written.right / written.total) * 120) : 0;
-      const listeningScore =
-        listening.total > 0
-          ? Math.round((listening.right / listening.total) * 60)
-          : 0;
-
-      officialBuckets = [
-        {
-          titleKo: '언어지식(문자·어휘·문법)·독해',
-          score: writtenScore,
-          maxScore: 120,
-          minRequired: 38,
-          passedMin: writtenScore >= 38,
-          correct: written.right,
-          total: written.total,
-        },
-        {
-          titleKo: '청해',
-          score: listeningScore,
-          maxScore: 60,
-          minRequired: 19,
-          passedMin: listeningScore >= 19,
-          correct: listening.right,
-          total: listening.total,
-        },
-      ];
-    } else {
-      // N1, N2, N3: 언어지식(문자·어휘·문법) 60점(19점) + 독해 60점(19점) + 청해 60점(19점) = 180점
-      const lang = countForCategories([
-        QuizCategory.Vocabulary,
-        QuizCategory.Grammar,
-      ]);
-      const reading = countForCategories([QuizCategory.Reading]);
-      const listening = countForCategories([QuizCategory.Listening]);
-
-      const langScore =
-        lang.total > 0 ? Math.round((lang.right / lang.total) * 60) : 0;
-      const readingScore =
-        reading.total > 0 ? Math.round((reading.right / reading.total) * 60) : 0;
-      const listeningScore =
-        listening.total > 0
-          ? Math.round((listening.right / listening.total) * 60)
-          : 0;
-
-      officialBuckets = [
-        {
-          titleKo: '언어지식(문자·어휘·문법)',
-          score: langScore,
-          maxScore: 60,
-          minRequired: 19,
-          passedMin: langScore >= 19,
-          correct: lang.right,
-          total: lang.total,
-        },
-        {
-          titleKo: '독해',
-          score: readingScore,
-          maxScore: 60,
-          minRequired: 19,
-          passedMin: readingScore >= 19,
-          correct: reading.right,
-          total: reading.total,
-        },
-        {
-          titleKo: '청해',
-          score: listeningScore,
-          maxScore: 60,
-          minRequired: 19,
-          passedMin: listeningScore >= 19,
-          correct: listening.right,
-          total: listening.total,
-        },
-      ];
-    }
-
-    scaledScore = officialBuckets.reduce((acc, b) => acc + b.score, 0);
-    const passedAllMins = officialBuckets.every((b) => b.passedMin);
-    const passedTotalScore = scaledScore >= levelInfo.passingScore;
-    isOfficialPass = passedTotalScore && passedAllMins;
-    failedBySectionMinimum = passedTotalScore && !passedAllMins;
-  } else {
-    // Period or single-category practice scaling
-    const distinctCategories = new Set(questions.map((q) => q.category)).size;
-    scaledMax = distinctCategories >= 2 ? 120 : 60;
-    scaledScore =
-      totalCount > 0 ? Math.round((correctCount / totalCount) * scaledMax) : 0;
-  }
-
-  let feedbackHeadline = '';
-  let feedbackBody = '';
-
-  if (isFullExam) {
-    if (isOfficialPass) {
-      feedbackHeadline = `축하합니다! JLPT ${examConfig.level} 합격 기준(${levelInfo.passingScore}점) 및 전 영역 과락 기준을 모두 통과했습니다.`;
-      feedbackBody =
-        '실전 시험 시간과 동일한 조건에서 안정적인 실력을 증명하셨습니다. 아래 오답 노트로 틀린 문항만 한 번 더 점검해 보세요.';
-    } else if (failedBySectionMinimum) {
-      feedbackHeadline = `총점(${scaledScore}점)은 합격선을 넘었으나, 영역별 최소 득점(과락 기준) 미달 영역이 있습니다.`;
-      feedbackBody = `JLPT는 총점이 기준 이상이어도 한 영역이라도 과락 기준(${levelInfo.minScoreRuleKo}) 미만이면 불합격 처리됩니다. 취약 영역을 집중 보완해 보세요.`;
-    } else {
-      const gap = levelInfo.passingScore - scaledScore;
-      feedbackHeadline = `아쉽습니다 · 합격 기준(${levelInfo.passingScore}점)까지 ${gap}점 부족합니다.`;
-      feedbackBody =
-        '영역별 득점표에서 점수가 낮은 파트를 확인하고, 아래 ‘틀린 문제만 다시 풀기’로 핵심 어휘·문법·청해 표현을 복습해 보세요.';
-    }
-  } else if (scorePercent >= 75) {
-    feedbackHeadline = `우수한 성적입니다! ${examConfig.titleKo} 영역에서 안정적인 득점력을 보여 주셨습니다.`;
-    feedbackBody =
-      '이 페이스를 유지하며 전 교시 통합 모의고사(180점 만점)에도 도전해 보세요.';
-  } else {
-    feedbackHeadline =
-      '문항별 한국어 해설과 대본·독음을 확인하며 취약 유형을 보완해 보세요.';
-    feedbackBody =
-      '‘틀린 문제만 다시 풀기’ 버튼을 누르면 오답 문항만 모아 빠르게 재복습할 수 있습니다.';
-  }
+  const report = evaluateExamAttempt(examConfig, questions, answers);
 
   const categoryOrder: QuizCategory[] = [
     QuizCategory.Vocabulary,
@@ -239,6 +87,13 @@ export function QuizResults({
   const displayedReviewQuestions =
     reviewFilter === 'incorrect' ? incorrectQuestions : questions;
 
+  const bucketGridCols =
+    report.buckets.length >= 3
+      ? 'sm:grid-cols-3'
+      : report.buckets.length === 2
+      ? 'sm:grid-cols-2'
+      : 'sm:grid-cols-1';
+
   return (
     <section className="bg-slate-50/70 min-h-[calc(100vh-4rem)] py-8 sm:py-12">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
@@ -263,42 +118,44 @@ export function QuizResults({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start pt-2">
-            {/* Score Numeric Display + Pass/Fail Verdict */}
+            {/* Score Numeric Display + Pass/Fail & Cutoff Verdict */}
             <div className="md:col-span-5 pb-6 md:pb-0 border-b md:border-b-0 md:border-r border-slate-200 md:pr-8">
-              {isFullExam && (
-                <div className="mb-3">
-                  {isOfficialPass ? (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-50 border border-emerald-300 text-xs sm:text-sm font-bold text-emerald-900">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
-                      <span>최종 판정: 합격 (合格)</span>
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-rose-50 border border-rose-300 text-xs sm:text-sm font-bold text-rose-900">
-                      <XCircle className="w-4 h-4 text-rose-700 shrink-0" />
-                      <span>
-                        최종 판정: 불합격 (
-                        {failedBySectionMinimum ? '영역 과락' : '총점 미달'})
-                      </span>
-                    </span>
-                  )}
-                </div>
-              )}
+              <div className="mb-3">
+                {report.isPassed ? (
+                  <div className="inline-flex items-center gap-1.5 text-sm font-bold text-emerald-800">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-700 shrink-0" />
+                    <span>{report.verdictBadgeKo}</span>
+                  </div>
+                ) : report.failedByCutoff ? (
+                  <div className="inline-flex items-center gap-1.5 text-sm font-bold text-rose-800">
+                    <AlertTriangle className="w-4 h-4 text-rose-700 shrink-0" />
+                    <span>{report.verdictBadgeKo}</span>
+                  </div>
+                ) : (
+                  <div className="inline-flex items-center gap-1.5 text-sm font-bold text-rose-800">
+                    <XCircle className="w-4 h-4 text-rose-700 shrink-0" />
+                    <span>{report.verdictBadgeKo}</span>
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-baseline gap-2.5">
                 <span className="text-5xl sm:text-6xl font-bold tracking-tight text-indigo-900 tabular-nums">
-                  {scaledScore}
+                  {report.scaledScore}
                 </span>
                 <span className="text-lg font-semibold text-slate-500 tabular-nums">
-                  / {scaledMax}점
+                  / {report.maxScaledScore}점
                 </span>
               </div>
 
-              {isFullExam && (
-                <p className="mt-1.5 text-xs text-slate-500 tabular-nums">
-                  {examConfig.level} 합격 기준: {levelInfo.passingScore}점 이상 · 과락:{' '}
-                  {levelInfo.minScoreRuleKo}
-                </p>
-              )}
+              <p className="mt-1.5 text-xs text-slate-500 tabular-nums leading-relaxed">
+                합격 기준: {report.passingScoreRequired}점 이상 · 과락 기준:{' '}
+                {examConfig.scope === 'full'
+                  ? levelInfo.minScoreRuleKo
+                  : report.buckets
+                      .map((b) => `${b.titleKo} ${b.minRequired}점 이상`)
+                      .join(' / ')}
+              </p>
 
               <p className="mt-2.5 text-sm text-slate-600 tabular-nums">
                 정답률 <strong className="text-slate-900">{scorePercent}%</strong> ·{' '}
@@ -309,50 +166,73 @@ export function QuizResults({
               </p>
 
               <p className="mt-4 text-sm sm:text-base font-bold text-slate-900 leading-snug">
-                {feedbackHeadline}
+                {report.headlineKo}
               </p>
               <p className="mt-1.5 text-xs sm:text-sm text-slate-600 leading-relaxed">
-                {feedbackBody}
+                {report.bodyKo}
               </p>
             </div>
 
             {/* Right Column: Official Section Score Cards + 4-Category Accuracy */}
             <div className="md:col-span-7 space-y-6">
-              {isFullExam && officialBuckets.length > 0 && (
+              {report.buckets.length > 0 && (
                 <div>
-                  <h2 className="text-sm font-bold text-slate-900 mb-3">
-                    JLPT 공식 채점 구분별 환산 점수 및 과락 판정
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {officialBuckets.map((bucket) => (
+                  <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+                    <h2 className="text-sm font-bold text-slate-900">
+                      JLPT 공식 채점 구분별 환산 점수 및 과락(기준점) 판정
+                    </h2>
+                    <span className="text-xs text-slate-500 tabular-nums">
+                      {levelInfo.isCombinedLangReadingScore &&
+                      examConfig.scope === 'full'
+                        ? 'N4·N5 통합 채점 (120점 + 60점)'
+                        : examConfig.scope === 'full'
+                        ? 'N1~N3 3영역 채점 (60점 × 3)'
+                        : '영역별 최소 기준 적용'}
+                    </span>
+                  </div>
+                  <div className={`grid grid-cols-1 ${bucketGridCols} gap-3`}>
+                    {report.buckets.map((bucket) => (
                       <div
                         key={bucket.titleKo}
-                        className="p-3.5 rounded-lg border border-slate-200 bg-slate-50/70 flex flex-col justify-between"
+                        className={`p-3.5 rounded-lg border flex flex-col justify-between ${
+                          bucket.passedMin
+                            ? 'border-slate-200 bg-slate-50/70'
+                            : 'border-rose-300 bg-rose-50/50'
+                        }`}
                       >
-                        <p className="text-xs font-semibold text-slate-700 leading-snug">
-                          {bucket.titleKo}
-                        </p>
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-xs font-semibold text-slate-800 leading-snug">
+                            {bucket.titleKo}
+                          </p>
+                          <span className="text-[11px] text-slate-500 whitespace-nowrap tabular-nums">
+                            {bucket.correct}/{bucket.total}문항
+                          </span>
+                        </div>
                         <div className="mt-2 flex items-baseline gap-1 tabular-nums">
-                          <span className="text-2xl font-bold text-slate-900">
+                          <span
+                            className={`text-2xl font-bold ${
+                              bucket.passedMin ? 'text-slate-900' : 'text-rose-800'
+                            }`}
+                          >
                             {bucket.score}
                           </span>
                           <span className="text-xs text-slate-500">
-                            / {bucket.maxScore}점
+                            / {bucket.maxScore}점 만점
                           </span>
                         </div>
                         <div className="mt-2 pt-2 border-t border-slate-200/80 flex items-center justify-between text-[11px] tabular-nums">
-                          <span className="text-slate-500">
-                            최소 {bucket.minRequired}점
+                          <span className="text-slate-600">
+                            과락 기준: {bucket.minRequired}점 이상
                           </span>
                           {bucket.passedMin ? (
                             <span className="inline-flex items-center gap-1 font-semibold text-emerald-800">
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>통과</span>
+                              <CheckCircle2 className="w-3.5 h-3.5 shrink-0" />
+                              <span>기준 통과</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 font-semibold text-rose-800">
-                              <XCircle className="w-3.5 h-3.5" />
-                              <span>과락</span>
+                            <span className="inline-flex items-center gap-1 font-bold text-rose-800">
+                              <XCircle className="w-3.5 h-3.5 shrink-0" />
+                              <span>과락 미달</span>
                             </span>
                           )}
                         </div>

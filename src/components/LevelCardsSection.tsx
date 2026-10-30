@@ -34,7 +34,7 @@ export function LevelCardsSection({
             </h2>
           </div>
           <p className="text-sm text-slate-600 max-w-md">
-            각 급수 카드에서 <strong className="font-semibold text-indigo-900">전 교시 통합 모의고사(90~170분)</strong>를 바로 시작하거나, <strong className="font-semibold text-slate-800">1교시 · 2교시 · 3교시</strong>를 나누어 실전처럼 응시할 수 있습니다.
+            각 급수 카드에서 <strong className="font-semibold text-indigo-900">전 교시 통합 모의고사(105~170분)</strong>를 바로 시작하거나, <strong className="font-semibold text-slate-800">1교시 · 2교시 · 3교시</strong>를 나누어 실전처럼 응시할 수 있습니다.
           </p>
         </div>
 

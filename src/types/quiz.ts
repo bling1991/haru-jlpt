@@ -74,6 +74,7 @@ export interface LevelInfo {
   difficultySummaryKo: string;
   totalMinutes: number;
   totalQuestions: number;
+  categoryCounts: Record<QuizCategory, number>;
   questionBreakdownSummaryKo: string;
   passingScore: number;
   maxScore: number;
@@ -109,6 +110,7 @@ export interface MockTestProgressEntry {
   bestScaledScore: number | null;
   maxScaledScore: number;
   passed: boolean | null;
+  failedByCutoff?: boolean;
   savedAnswers?: Record<string, UserAnswerState>;
   lastIndex?: number;
   remainingSeconds?: number;

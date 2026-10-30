@@ -5,7 +5,11 @@ import {
   UserAnswerState,
 } from '../types/quiz';
 
-const STORAGE_KEY = 'haru_jlpt_mock_progress_v1';
+const LEGACY_STORAGE_KEYS = [
+  'haru_jlpt_mock_progress_v2',
+  'haru_jlpt_mock_progress_v1',
+];
+const STORAGE_KEY = 'haru_jlpt_mock_progress_v3';
 
 export function makeProgressKey(
   level: JlptLevel,
@@ -19,11 +23,39 @@ export function loadAllMockProgress(): Record<string, MockTestProgressEntry> {
   if (typeof window === 'undefined') return {};
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed === 'object') {
-      return parsed as Record<string, MockTestProgressEntry>;
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return parsed as Record<string, MockTestProgressEntry>;
+      }
     }
+
+    // Migrate completed best scores from legacy keys while dropping unsubmitted savedAnswers
+    // whose question counts and option indices changed when official counts were applied.
+    for (const legacyKey of LEGACY_STORAGE_KEYS) {
+      const legacyRaw = window.localStorage.getItem(legacyKey);
+      if (legacyRaw) {
+        const legacyParsed = JSON.parse(legacyRaw);
+        if (legacyParsed && typeof legacyParsed === 'object') {
+          const migrated: Record<string, MockTestProgressEntry> = {};
+          for (const [k, entry] of Object.entries(
+            legacyParsed as Record<string, MockTestProgressEntry>
+          )) {
+            if (entry && entry.completed) {
+              migrated[k] = {
+                ...entry,
+                savedAnswers: undefined,
+                lastIndex: 0,
+                remainingSeconds: undefined,
+              };
+            }
+          }
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+          return migrated;
+        }
+      }
+    }
+
     return {};
   } catch {
     return {};
@@ -66,8 +98,10 @@ export function saveInProgressAttempt(params: {
       totalCount: params.totalCount,
       completed: prev?.completed ?? false,
       bestScaledScore: prev?.bestScaledScore ?? null,
-      maxScaledScore: prev?.maxScaledScore ?? (params.scope === 'full' ? 180 : 60),
+      maxScaledScore:
+        prev?.maxScaledScore ?? (params.scope === 'full' ? 180 : 60),
       passed: prev?.passed ?? null,
+      failedByCutoff: prev?.failedByCutoff,
       savedAnswers: params.answers,
       lastIndex: params.currentIndex,
       remainingSeconds: params.remainingSeconds,
@@ -88,6 +122,7 @@ export function saveCompletedAttempt(params: {
   scaledScore: number;
   maxScaledScore: number;
   passed: boolean | null;
+  failedByCutoff?: boolean;
 }): void {
   if (typeof window === 'undefined') return;
   try {
@@ -99,6 +134,13 @@ export function saveCompletedAttempt(params: {
         ? Math.max(prev.bestScaledScore, params.scaledScore)
         : params.scaledScore;
 
+    const finalPassed =
+      prev?.passed === true
+        ? true
+        : params.passed !== null
+        ? params.passed
+        : prev?.passed ?? null;
+
     all[key] = {
       key,
       level: params.level,
@@ -109,12 +151,9 @@ export function saveCompletedAttempt(params: {
       completed: true,
       bestScaledScore,
       maxScaledScore: params.maxScaledScore,
-      passed:
-        prev?.passed === true
-          ? true
-          : params.passed !== null
-          ? params.passed
-          : prev?.passed ?? null,
+      passed: finalPassed,
+      failedByCutoff:
+        finalPassed === true ? false : Boolean(params.failedByCutoff),
       savedAnswers: undefined,
       lastIndex: 0,
       remainingSeconds: undefined,

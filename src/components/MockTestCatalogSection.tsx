@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Award,
   CheckCircle2,
   ChevronDown,
@@ -10,6 +11,7 @@ import {
   Play,
   RotateCcw,
   Search,
+  XCircle,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { getLevelInfo } from '../data/levels';
@@ -124,6 +126,7 @@ export function MockTestCatalogSection({
         hasResume,
         completed: Boolean(entry?.completed),
         passed: entry?.passed ?? null,
+        failedByCutoff: Boolean(entry?.failedByCutoff),
         bestScore: entry?.bestScaledScore ?? null,
       };
     }).filter((item) => {
@@ -272,6 +275,20 @@ export function MockTestCatalogSection({
                                     : ''}
                                 </span>
                               </span>
+                            ) : item.passed === false ? (
+                              <span className="inline-flex items-center gap-1 text-xs font-semibold text-rose-800 tabular-nums">
+                                {item.failedByCutoff ? (
+                                  <AlertTriangle className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+                                ) : (
+                                  <XCircle className="w-3.5 h-3.5 text-rose-700 shrink-0" />
+                                )}
+                                <span>
+                                  {item.failedByCutoff ? '과락 불합격' : '불합격'}
+                                  {item.bestScore !== null
+                                    ? ` · ${item.bestScore}점`
+                                    : ''}
+                                </span>
+                              </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-800 tabular-nums">
                                 <CheckCircle2 className="w-3.5 h-3.5 text-indigo-700 shrink-0" />
@@ -295,15 +312,18 @@ export function MockTestCatalogSection({
                           )}
                         </div>
 
-                        {/* 3 Key Metrics Rows matching Screenshot */}
-                        <dl className="space-y-2.5 text-xs sm:text-sm">
+                        {/* Key Metrics Rows matching Screenshot + 과락 기준 */}
+                        <dl className="space-y-2 text-xs sm:text-sm">
                           <div className="flex items-center justify-between gap-2">
                             <dt className="inline-flex items-center gap-2 text-slate-600">
                               <Award className="w-4 h-4 text-slate-400 shrink-0" />
                               <span>통과 지점:</span>
                             </dt>
                             <dd className="font-bold text-slate-900 tabular-nums">
-                              {scopeMeta.passingPoints}점
+                              {scopeMeta.passingPoints}점{' '}
+                              <span className="text-xs font-medium text-slate-500">
+                                / {scopeMeta.maxPoints}점
+                              </span>
                             </dd>
                           </div>
 
@@ -328,7 +348,9 @@ export function MockTestCatalogSection({
                             <dd
                               className={`font-bold tabular-nums ${
                                 item.progressPct === 100
-                                  ? 'text-emerald-700'
+                                  ? item.passed === false
+                                    ? 'text-rose-700'
+                                    : 'text-emerald-700'
                                   : item.progressPct > 0
                                   ? 'text-indigo-800'
                                   : 'text-slate-900'
@@ -338,6 +360,10 @@ export function MockTestCatalogSection({
                             </dd>
                           </div>
                         </dl>
+
+                        <p className="mt-2.5 text-[11px] text-slate-500 tabular-nums leading-snug">
+                          과락 기준: {scopeMeta.cutoffSummaryKo}
+                        </p>
 
                         {item.progressPct > 0 && (
                           <progress
@@ -529,7 +555,7 @@ export function MockTestCatalogSection({
                         </span>
 
                         <span className="text-xs text-slate-500 tabular-nums">
-                          10회 · {info.totalMinutes}분
+                          {info.totalQuestions}문항 · {info.totalMinutes}분
                         </span>
                       </button>
                     );
