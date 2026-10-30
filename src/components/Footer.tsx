@@ -22,10 +22,10 @@ export function Footer({ selectedLevel, onGoHome, onStartExam }: FooterProps) {
         <div className="flex flex-wrap items-center gap-6 text-xs sm:text-sm font-medium text-slate-600">
           <button
             type="button"
-            onClick={() => onGoHome('levels-section')}
+            onClick={() => onGoHome('mock-catalog-section')}
             className="hover:text-indigo-900 transition-colors whitespace-nowrap cursor-pointer"
           >
-            급수 선택 (N1~N5)
+            모의고사 10회 목록
           </button>
           <button
             type="button"

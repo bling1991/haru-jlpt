@@ -87,7 +87,7 @@ export function BenchmarkTableSection({
 
                     <td className="py-4 px-4 text-slate-700 tabular-nums">
                       <div className="font-semibold text-slate-900">
-                        총 {actualCount}문항
+                        회당 {actualCount}문항 × 10회 ({actualCount * 10}문항)
                       </div>
                       <div className="text-xs text-slate-500 mt-0.5">
                         {lvl.questionBreakdownSummaryKo}

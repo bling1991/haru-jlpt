@@ -85,7 +85,7 @@ export function LevelCardsSection({
                       JLPT {item.level}
                     </h3>
                     <span className="text-xs font-semibold text-indigo-900 tabular-nums">
-                      총 {totalLoaded}문항 수록
+                      10회분 · 회당 {totalLoaded}문항
                     </span>
                   </div>
 

@@ -1,4 +1,5 @@
 import {
+  ArrowRight,
   CheckCircle2,
   Clock,
   Home,
@@ -27,6 +28,7 @@ interface QuizResultsProps {
   timedOut: boolean;
   onRetryAll: () => void;
   onRetryIncorrect: (incorrectQuestions: QuizQuestion[]) => void;
+  onStartNextTest?: () => void;
   onGoHome: () => void;
 }
 
@@ -48,6 +50,7 @@ export function QuizResults({
   timedOut,
   onRetryAll,
   onRetryIncorrect,
+  onStartNextTest,
   onGoHome,
 }: QuizResultsProps) {
   const [reviewFilter, setReviewFilter] = useState<'all' | 'incorrect'>('all');
@@ -392,13 +395,26 @@ export function QuizResults({
 
           {/* Primary Retry & Navigation Buttons */}
           <div className="mt-8 pt-6 border-t border-slate-200 flex flex-wrap items-center gap-3">
+            {onStartNextTest && examConfig.testNumber < 10 && (
+              <button
+                type="button"
+                onClick={onStartNextTest}
+                className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-indigo-800 rounded-lg hover:bg-indigo-900 transition-colors whitespace-nowrap shrink-0 tabular-nums cursor-pointer"
+              >
+                <span>
+                  다음 회차 풀기 (테스트 {examConfig.testNumber + 1})
+                </span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onRetryAll}
-              className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-white bg-indigo-800 rounded-lg hover:bg-indigo-900 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-semibold text-indigo-950 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
-              <span>처음부터 다시 풀기</span>
+              <span>현재 회차 다시 풀기</span>
             </button>
 
             {incorrectQuestions.length > 0 && (
@@ -420,7 +436,7 @@ export function QuizResults({
               className="inline-flex items-center justify-center gap-2 px-5 py-3 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             >
               <Home className="w-4 h-4" />
-              <span>급수·교시 선택으로 돌아가기</span>
+              <span>모의고사 1~10회 목록으로</span>
             </button>
           </div>
         </div>

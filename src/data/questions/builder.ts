@@ -263,7 +263,10 @@ export function buildListeningQuestions(
       situationKo: item.situationKo,
       audioScriptJp: item.scriptJp,
       promptSegments: [{ text: item.questionJp }],
-      speechTextJp: `${item.scriptJp}\n質問：${item.questionJp}`,
+      speechTextJp:
+        item.code === 'L_RESP' || /[가-힣]/.test(item.questionJp)
+          ? item.scriptJp
+          : `${item.scriptJp}\n質問：${item.questionJp}`,
       options: item.options,
       correctIndex: item.ans,
       sentenceReadingJp: item.scriptJp,

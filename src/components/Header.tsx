@@ -46,10 +46,17 @@ export function Header({
         >
           <button
             type="button"
+            onClick={() => handleNavClick('mock-catalog-section')}
+            className="hover:text-indigo-900 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+          >
+            모의고사 10회
+          </button>
+          <button
+            type="button"
             onClick={() => handleNavClick('levels-section')}
             className="hover:text-indigo-900 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
           >
-            급수 선택
+            급수별 구성
           </button>
           <button
             type="button"
@@ -61,18 +68,11 @@ export function Header({
           <button
             type="button"
             onClick={() => handleNavClick('benchmarks-section')}
-            className="hover:text-indigo-900 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
-          >
-            시험시간 기준
-          </button>
-          <button
-            type="button"
-            onClick={handleStartClick}
             className={`hover:text-indigo-900 hover:underline underline-offset-4 transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
               currentMode === 'quiz' ? 'text-indigo-800 font-semibold' : ''
             }`}
           >
-            실전 모의고사
+            시험시간 기준
           </button>
         </nav>
 

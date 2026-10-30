@@ -36,8 +36,8 @@ export function HeroSection({
           <div className="lg:col-span-7 flex flex-col justify-between">
             <div>
               <p className="text-xs sm:text-sm font-medium text-indigo-800 mb-3 tabular-nums">
-                JLPT N1~N5 전 급수 실전 모의고사 · 문자·어휘 · 문법 · 독해 · 청해 총{' '}
-                {TOTAL_QUESTION_BANK_COUNT}문항 수록
+                JLPT N1~N5 급수별 10회분(총 50회) 실전 모의고사 · 총{' '}
+                {TOTAL_QUESTION_BANK_COUNT.toLocaleString()}문항 완비
               </p>
 
               <h1 className="text-3xl sm:text-4xl lg:text-[2.6rem] font-bold tracking-tight text-slate-900 leading-[1.22] text-balance">
@@ -102,22 +102,19 @@ export function HeroSection({
             <div className="mt-7 pt-2 flex flex-wrap items-center gap-3">
               <button
                 type="button"
-                onClick={() => onStartExam(selectedLevel, 'full')}
+                onClick={() => onScrollToSection('mock-catalog-section')}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3.5 text-sm sm:text-base font-semibold text-white bg-indigo-800 rounded-lg hover:bg-indigo-900 transition-colors whitespace-nowrap shrink-0 tabular-nums cursor-pointer"
               >
-                <span>
-                  {selectedLevel} 실전 모의고사 시작 ({activeLevelInfo.totalMinutes}분 ·{' '}
-                  {activeQuestionCount}문항)
-                </span>
+                <span>{selectedLevel} 모의고사 1~10회 목록 보기</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
 
               <button
                 type="button"
-                onClick={() => onScrollToSection('practice-hub-section')}
-                className="inline-flex items-center justify-center px-5 py-3.5 text-sm sm:text-base font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+                onClick={() => onStartExam(selectedLevel, 'full')}
+                className="inline-flex items-center justify-center px-5 py-3.5 text-sm sm:text-base font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50 hover:text-slate-900 transition-colors whitespace-nowrap shrink-0 tabular-nums cursor-pointer"
               >
-                교시별 · 영역별 나누어 풀기
+                {selectedLevel} 테스트 1 바로 시작 ({activeLevelInfo.totalMinutes}분)
               </button>
             </div>
           </div>
@@ -152,18 +149,18 @@ export function HeroSection({
         <div className="mt-12 pt-8 border-t border-slate-200 grid grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
           <div>
             <p className="text-2xl sm:text-3xl font-bold text-slate-900 tabular-nums">
-              N1 ~ N5
+              급수당 10회
             </p>
             <p className="mt-1 text-xs sm:text-sm text-slate-600">
-              1급(71문항)~5급(73문항) 실전 완비
+              N1~N5 총 50회분 모의고사 수록
             </p>
           </div>
           <div>
             <p className="text-2xl sm:text-3xl font-bold text-indigo-800 tabular-nums">
-              {TOTAL_QUESTION_BANK_COUNT}문항
+              {TOTAL_QUESTION_BANK_COUNT.toLocaleString()}문항
             </p>
             <p className="mt-1 text-xs sm:text-sm text-slate-600">
-              문자·어휘 · 문법 · 독해 · 청해 수록
+              문자·어휘 · 문법 · 독해 · 청해 완비
             </p>
           </div>
           <div>
