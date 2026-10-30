@@ -1,0 +1,6 @@
+{
+  "name": "하루 JLPT — 일본어능력시험 실전 연습",
+  "description": "한국어 학습자를 위한 JLPT N5~N1 일본어능력시험 실전 문제 풀이 및 맞춤형 한국어 해설 웹사이트",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
